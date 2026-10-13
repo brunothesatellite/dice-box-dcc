@@ -256,6 +256,13 @@ export class Tray {
     el.style.color = '#ffffff';
     this.blayer.appendChild(el);
     d.badge = el;
+    this.placeBadge(d); // positionné de suite, pas à la frame suivante
+  }
+  placeBadge(d) {
+    if (!d.badge) return;
+    const rpx = d.sizeR / this.scale;
+    const s = this.toScreen(d.group.position);
+    d.badge.style.transform = `translate(${s.x + rpx * 0.55}px,${s.y - rpx * 1.15}px)`;
   }
   showTotal() {
     const s = countTotal(this.dice.map((d) => ({ sides: d.def.sides, pct: !!d.def.pct, value: d.value })));
@@ -363,12 +370,7 @@ export class Tray {
     }
     this.collide();
     // badges projetés
-    for (const d of this.dice) {
-      if (!d.badge) continue;
-      const rpx = d.sizeR / this.scale;
-      const s = this.toScreen(d.group.position);
-      d.badge.style.transform = `translate(${s.x + rpx * 0.55}px,${s.y - rpx * 1.15}px)`;
-    }
+    for (const d of this.dice) this.placeBadge(d);
     this.renderer.render(this.scene, this.camera);
   }
   // --- gestes : tap / appui long / drag / fling ---
