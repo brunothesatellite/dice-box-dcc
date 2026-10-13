@@ -12,7 +12,9 @@ const DIE_COLL = 0.62;
 const REST_Y = 0.52;
 const GRAV = 18;
 const ELEV = (56 * Math.PI) / 180;
-const SETTLE_T = 0.38;
+const SETTLE_T = 0.28;
+// Scratch quaternions/vecteur du guidage (pas d'allocs par frame).
+const _w = new THREE.Vector3(), _c = new THREE.Vector3(), _a = new THREE.Quaternion(), _t = new THREE.Quaternion(), _q = new THREE.Quaternion();
 
 export class Tray {
   constructor(trayEl, hooks = {}) {
@@ -114,7 +116,7 @@ export class Tray {
     group.position.set(p.x, REST_Y, p.z);
     this.scene.add(group);
     const d = {
-      def, bg, group, value: null, mode: 'spawn', spawnT: 0,
+      def, bg, group, value: null, faceN: null, twist: 0, mode: 'spawn', spawnT: 0,
       vel: new THREE.Vector3(), angVel: new THREE.Vector3(),
       flyTime: 0, settleT: 0, fromQ: new THREE.Quaternion(), toQ: new THREE.Quaternion(),
       badge: null, thrown: false,
@@ -146,6 +148,9 @@ export class Tray {
     d.mode = 'fly';
     d.flyTime = 0;
     d.thrown = true;
+    d.value = rollDie(d.def); // tirage en amont, explicite
+    d.faceN = normalForValue(d.def, d.group.userData.built, d.value);
+    d.twist = (Math.random() - 0.5) * (Math.PI / 3.6);
     d.vel.set(vx, vy, vz);
     d.angVel.set((Math.random() - 0.5) * 36 * spin, (Math.random() - 0.5) * 36 * spin, (Math.random() - 0.5) * 36 * spin);
     if (d.badge) { d.badge.remove(); d.badge = null; }
@@ -168,7 +173,7 @@ export class Tray {
     });
   }
   // --- orientation résultat ---
-  targetQuat(d, value) {
+  targetQuat(d, value, tw = (Math.random() - 0.5) * (Math.PI / 3.6)) {
     const built = d.group.userData.built;
     const cam = this.camDir();
     const local = normalForValue(d.def, built, value);
@@ -176,15 +181,33 @@ export class Tray {
     const world = local.applyQuaternion(d.group.quaternion);
     const align = new THREE.Quaternion().setFromUnitVectors(world, target);
     const toQ = align.multiply(d.group.quaternion);
-    const twist = new THREE.Quaternion().setFromAxisAngle(target, (Math.random() - 0.5) * (Math.PI / 3.6));
+    const twist = new THREE.Quaternion().setFromAxisAngle(target, tw);
     return twist.multiply(toQ);
   }
+  // Guidage progressif : pendant que le dé ralentit, sa rotation est attirée
+  // vers la présentation finale — le pivot de settle n'a presque plus rien à corriger.
+  guide(d, dt) {
+    const ramp = Math.min(1, Math.max(0, (d.flyTime - 0.4) / 0.8));
+    if (ramp <= 0 || !d.faceN) return;
+    const calm = Math.min(1, Math.max(0, 1 - Math.hypot(d.vel.x, d.vel.z) / 3))
+               * Math.min(1, Math.max(0, 1 - d.angVel.length() / 8));
+    const k = Math.min(1, ramp * calm * dt * 4);
+    if (k <= 0) return;
+    const cam = this.camDir();
+    _w.copy(d.faceN).applyQuaternion(d.group.quaternion);
+    _a.setFromUnitVectors(_w, cam);
+    _q.copy(d.group.quaternion);
+    _a.multiply(_q);
+    _t.setFromAxisAngle(cam, d.twist);
+    _t.multiply(_a);
+    d.group.quaternion.slerp(_t, k);
+    d.angVel.multiplyScalar(Math.max(0, 1 - k * 0.9));
+  }
   beginSettle(d) {
-    d.value = rollDie(d.def); // décidé à l'arrêt, avant la présentation
     d.mode = 'settle';
     d.settleT = 0;
     d.fromQ.copy(d.group.quaternion);
-    d.toQ.copy(this.targetQuat(d, d.value));
+    d.toQ.copy(this.targetQuat(d, d.value, d.twist));
   }
   endSettle(d) {
     d.mode = 'rest';
@@ -254,9 +277,16 @@ export class Tray {
       const dq = new THREE.Quaternion().setFromAxisAngle(w.clone().normalize(), wl * dt);
       d.group.quaternion.premultiply(dq);
     }
+    if (d.thrown) this.guide(d, dt);
     const grounded = p.y === REST_Y;
     const slow = Math.hypot(d.vel.x, d.vel.z) < 0.45 && wl < 0.8;
-    if ((grounded && slow) || d.flyTime > 6) {
+    // Settle seulement si la face est déjà amenée (~20°) : le pivot final reste discret.
+    let ready = true;
+    if (slow && d.thrown && d.faceN) {
+      _w.copy(d.faceN).applyQuaternion(d.group.quaternion);
+      ready = _w.dot(_c.copy(this.camDir())) > 0.94;
+    }
+    if ((grounded && slow && ready) || d.flyTime > 6) {
       if (d.mode === 'slide') { d.mode = 'rest'; d.vel.set(0, 0, 0); d.angVel.set(0, 0, 0); }
       else this.beginSettle(d);
     }

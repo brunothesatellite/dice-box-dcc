@@ -55,7 +55,7 @@ Rendu : flat shading, 1 mesh + 1 material par dé, texture atlas (1 case = 1 chi
 ## 4. Tirage (équitable, résultat d'abord — comme dicebox)
 
 1. `crypto.getRandomValues` + *rejection sampling* (pas de biais modulo).
-2. Le nombre est fixé **avant** l'animation ; l'animation ne fait que le présenter (orientation finale = face résultat vers caméra, slerp ~0,35 s).
+2. Le nombre est fixé **au moment du lancer** ; l'animation ne fait que le présenter : guidage progressif de la face vers la caméra pendant le ralentissement, settle conditionné à l'alignement (~20°), micro-ajustement final (~0,25 s).
 3. Lancer manuel : impulsion + rebonds sur les murs + collisions disques entre dés, puis settle → valeur.
 
 ## 5. IHM (cf. maquette)
