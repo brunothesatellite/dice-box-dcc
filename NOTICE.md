@@ -1,7 +1,7 @@
 # Licences et crédits
 
-Code applicatif (`index.html`, `css/`, `js/`, `maquette.html`, `PLAN.md`) : usage personnel
-(Bruno) — précisez la licence de votre choix avant diffusion.
+Code applicatif (`index.html`, `css/`, `js/`, `maquette.html`, `PLAN.md`) : MIT,
+voir `LICENSE` (© 2026 Bruno).
 
 ## Dépendances vendored (dans `vendor/`)
 
