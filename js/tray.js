@@ -6,7 +6,8 @@ import { rollDie } from './rng.js';
 import { countTotal } from './total.js';
 import { pickShade, formatValue, LONGPRESS_MS, TAP_SLOP, FLING_PX, TRAY_MAX, TOTAL_MS } from './config.js';
 
-const WORLD_W = 8;
+const WORLD_BASE = 8; // largeur monde de référence (mobile, inchangée)
+const PX_PER_WORLD = 90; // ~90px par unité monde => Ø dé ~121px constant sur PC
 const DIE_R = 0.72;
 const DIE_COLL = 0.62;
 const REST_Y = 0.52;
@@ -47,6 +48,7 @@ export class Tray {
     key.shadow.camera.left = -8; key.shadow.camera.right = 8;
     key.shadow.camera.top = 8; key.shadow.camera.bottom = -8;
     key.shadow.camera.near = 1; key.shadow.camera.far = 30;
+    this.key = key;
     this.scene.add(key);
     this.ground = new THREE.Mesh(
       new THREE.PlaneGeometry(40, 40),
@@ -69,17 +71,27 @@ export class Tray {
   resize() {
     const r = this.el.getBoundingClientRect();
     this.pxW = Math.max(1, r.width); this.pxH = Math.max(1, r.height);
-    this.worldH = (WORLD_W * this.pxH) / this.pxW;
-    this.bx = WORLD_W / 2; this.bz = this.worldH / 2;
-    this.scale = WORLD_W / this.pxW; // px -> monde
+    // Monde adaptatif : mobile inchangé (<=720px => 8), PC agrandi pour
+    // garder une taille pixel de dé constante (~121px de diamètre).
+    this.worldW = Math.max(WORLD_BASE, this.pxW / PX_PER_WORLD);
+    this.worldH = (this.worldW * this.pxH) / this.pxW;
+    this.bx = this.worldW / 2; this.bz = this.worldH / 2;
+    this.scale = this.worldW / this.pxW; // px -> monde
     this.renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 2));
     this.renderer.setSize(this.pxW, this.pxH, false);
     this.camera.aspect = this.pxW / this.pxH;
     this.camera.updateProjectionMatrix();
     const fov = (this.camera.fov * Math.PI) / 180;
-    const dist = Math.max(this.worldH / 2 / Math.tan(fov / 2), WORLD_W / 2 / (Math.tan(fov / 2) * (this.pxW / this.pxH))) * 1.07;
+    const dist = Math.max(this.worldH / 2 / Math.tan(fov / 2), this.worldW / 2 / (Math.tan(fov / 2) * (this.pxW / this.pxH))) * 1.07;
     this.camera.position.set(0, Math.sin(ELEV) * dist, Math.cos(ELEV) * dist);
     this.camera.lookAt(0, 0, 0);
+    // Ombres : suit le tapis agrandi.
+    if (this.key) {
+      const sc = this.key.shadow.camera;
+      sc.left = -this.bx - 2; sc.right = this.bx + 2;
+      sc.top = this.bz + 2; sc.bottom = -this.bz - 2;
+      sc.updateProjectionMatrix();
+    }
   }
   camDir() {
     return this.camera.position.clone().normalize();
