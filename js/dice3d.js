@@ -45,20 +45,28 @@ function faceUVs(verts, face, cell, cols, atlasW, atlasH, stretch = false) {
   // le chiffre, dessiné au centre de la case, semblait alors de travers.
   const m = 7; // marge intérieure de case (chiffres larges et lisibles)
   const cx = (cell % cols) * CELL, cy = Math.floor(cell / cols) * CELL;
-  if (stretch) { // rendu v0.2 validé : boîte englobante -> case, étirement assumé
+  if (stretch) { // faces très allongées : remplit la case (étirement assumé),
+    // mais centre sur le CENTROÏDE (comme le chemin uniforme) : le milieu de
+    // boîte est décalé vers l'apex sur triangles (D16) et kites (D14), le
+    // chiffre semblait collé en haut. Clampé à la case (m) : les pointes
+    // échantillonnent l'aplat (invisible), pas les cases voisines.
     let minU = Infinity, maxU = -Infinity, minV = Infinity, maxV = -Infinity;
+    let cU = 0, cV = 0;
     for (const [du, dv] of dots) {
       if (du < minU) minU = du;
       if (du > maxU) maxU = du;
       if (dv < minV) minV = dv;
       if (dv > maxV) maxV = dv;
+      cU += du; cV += dv;
     }
+    cU /= dots.length; cV /= dots.length;
+    const su = (CELL - 2 * m) / ((maxU - minU) || 1);
+    const sv = (CELL - 2 * m) / ((maxV - minV) || 1);
+    const x0 = cx + m, x1 = cx + CELL - m, y0 = cy + m, y1 = cy + CELL - m;
     return dots.map(([du, dv]) => {
-      const fu = (du - minU) / ((maxU - minU) || 1);
-      const fv = (dv - minV) / ((maxV - minV) || 1);
-      const u = (cx + m + fu * (CELL - 2 * m)) / atlasW;
-      const y = cy + CELL - m - fv * (CELL - 2 * m); // sens atlas v0.2 inchangé
-      return [u, 1 - y / atlasH];
+      const u = Math.min(x1, Math.max(x0, cx + CELL / 2 + (du - cU) * su)) / atlasW;
+      const y = Math.min(y1, Math.max(y0, cy + CELL / 2 - (dv - cV) * sv));
+      return [u, 1 - y / atlasH]; // sens atlas v0.2 inchangé
     });
   }
   let cU = 0, cV = 0;
