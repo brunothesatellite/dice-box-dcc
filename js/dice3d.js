@@ -2,10 +2,12 @@
 import * as THREE from '../vendor/three.module.min.js';
 import { solidFor, newellNormal } from './solids.js';
 import { atlasFor, CELL } from './textures.js';
-import { valuesFor } from './config.js';
+import { valuesFor, luminance, shade } from './config.js';
 
 const geoCache = new Map();
 const matCache = new Map();
+const edgeGeoCache = new Map();
+const edgeMatCache = new Map();
 
 function v3norm(n) {
   const m = Math.hypot(n[0], n[1], n[2]) || 1;
@@ -134,6 +136,7 @@ function bodyMaterial(def, bg) {
   tex.colorSpace = THREE.SRGBColorSpace;
   tex.anisotropy = 4;
   const m = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.5, metalness: 0.08 });
+  m.polygonOffset = true; m.polygonOffsetFactor = 1; m.polygonOffsetUnits = 1; // les arêtes gagnent le test de profondeur
   matCache.set(key, m);
   return m;
 }
@@ -142,12 +145,44 @@ export function normalForValue(def, built, value) {
   const fi = def.pct ? built.landing[value / 10] : built.landing[value - 1];
   return built.faceNormals[fi].clone();
 }
+// Arêtes topologiques (boucles de faces, pas de diagonales de triangulation),
+// en coordonnées solide normalisées : suivent le corps via le scale du groupe.
+function edgeGeometry(def) {
+  if (edgeGeoCache.has(def.kind)) return edgeGeoCache.get(def.kind);
+  const s = solidFor(def.kind);
+  const seen = new Set(), pos = [];
+  for (const face of s.faces) {
+    for (let i = 0; i < face.length; i++) {
+      const a = face[i], b = face[(i + 1) % face.length];
+      const key = a < b ? a + ':' + b : b + ':' + a;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      pos.push(s.verts[a][0], s.verts[a][1], s.verts[a][2], s.verts[b][0], s.verts[b][1], s.verts[b][2]);
+    }
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  edgeGeoCache.set(def.kind, g);
+  return g;
+}
+// Teinte tonale du dé : foncée sur dé clair, claire sur dé sombre.
+function edgeColorFor(bg) {
+  return luminance(bg) > 0.45 ? shade(bg, -30) : shade(bg, 30);
+}
 export function buildDie(def, bg) {
   const built = buildGeometry(def);
   const group = new THREE.Group();
   const body = new THREE.Mesh(built.geometry, bodyMaterial(def, bg));
   body.castShadow = true;
   group.add(body);
+  // Surlignage fin des arêtes (1px WebGL) : sépare les faces, teinte du dé.
+  const edgeKey = def.label + '|' + bg;
+  let edgeMat = edgeMatCache.get(edgeKey);
+  if (!edgeMat) {
+    edgeMat = new THREE.LineBasicMaterial({ color: edgeColorFor(bg), transparent: true, opacity: 0.35 });
+    edgeMatCache.set(edgeKey, edgeMat);
+  }
+  group.add(new THREE.LineSegments(edgeGeometry(def), edgeMat));
   group.userData = { def, built, body };
   return group;
 }
