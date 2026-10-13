@@ -22,6 +22,7 @@ export class Tray {
     this.el = trayEl;
     this.onTotal = hooks.onTotal || (() => {});
     this.toast = hooks.toast || (() => {});
+    this.sound = hooks.sound || null;
     this.dice = [];
     this.typeCount = {};
     this.pending = 0;
@@ -168,6 +169,15 @@ export class Tray {
     d.vel.set(vx, vy, vz);
     d.angVel.set((Math.random() - 0.5) * 36 * spin, (Math.random() - 0.5) * 36 * spin, (Math.random() - 0.5) * 36 * spin);
     if (d.badge) { d.badge.remove(); d.badge = null; }
+    if (this.sound) this.sound.throwClack(); // un bruit par dé (cascade via stagger)
+  }
+  // Rebond sonore, throttle 70 ms par dé (pas de mitraille à 60 fps).
+  dieSound(d, s) {
+    if (!this.sound || s <= 0) return;
+    const now = performance.now();
+    if (now - (d.lastSnd || 0) < 70) return;
+    d.lastSnd = now;
+    this.sound.bounce(s);
   }
   rollSingle(d) {
     if (d.mode === 'fly' || d.mode === 'settle') return;
@@ -229,6 +239,8 @@ export class Tray {
     d.vel.set(0, 0, 0);
     d.angVel.set(0, 0, 0);
     this.showBadge(d);
+    if (this.sound) this.sound.settle();
+    if (!this.reduced && navigator.vibrate) { try { navigator.vibrate(12); } catch (_) { /* noop */ } }
     if (this.pending > 0) {
       this.pending--;
       if (this.pending === 0) this.showTotal();
@@ -271,7 +283,8 @@ export class Tray {
     p.x += d.vel.x * dt; p.y += d.vel.y * dt; p.z += d.vel.z * dt;
     if (p.y < REST_Y) {
       p.y = REST_Y;
-      if (Math.abs(d.vel.y) > 0.9) d.vel.y = -d.vel.y * 0.6;
+      const impactY = Math.abs(d.vel.y);
+      if (impactY > 0.9) { d.vel.y = -d.vel.y * 0.6; this.dieSound(d, Math.min(1, impactY / 6)); }
       else d.vel.y = 0;
       d.vel.x *= 0.8; d.vel.z *= 0.8;
       d.angVel.multiplyScalar(0.85);
@@ -280,12 +293,14 @@ export class Tray {
     }
     if (d.vel.y === 0) { d.vel.x *= Math.exp(-1.8 * dt); d.vel.z *= Math.exp(-1.8 * dt); }
     d.angVel.multiplyScalar(Math.exp(-1.6 * dt));
-    // murs
+    // murs (rebond sonore sourd si impact franc)
     const wc = d.coll;
-    if (p.x < -this.bx + wc) { p.x = -this.bx + wc; d.vel.x = Math.abs(d.vel.x) * 0.5; }
-    if (p.x > this.bx - wc) { p.x = this.bx - wc; d.vel.x = -Math.abs(d.vel.x) * 0.5; }
-    if (p.z < -this.bz + wc) { p.z = -this.bz + wc; d.vel.z = Math.abs(d.vel.z) * 0.5; }
-    if (p.z > this.bz - wc) { p.z = this.bz - wc; d.vel.z = -Math.abs(d.vel.z) * 0.5; }
+    let ix = 0, iz = 0;
+    if (p.x < -this.bx + wc) { ix = Math.abs(d.vel.x); p.x = -this.bx + wc; d.vel.x = Math.abs(d.vel.x) * 0.5; }
+    if (p.x > this.bx - wc) { ix = Math.abs(d.vel.x); p.x = this.bx - wc; d.vel.x = -Math.abs(d.vel.x) * 0.5; }
+    if (p.z < -this.bz + wc) { iz = Math.abs(d.vel.z); p.z = -this.bz + wc; d.vel.z = Math.abs(d.vel.z) * 0.5; }
+    if (p.z > this.bz - wc) { iz = Math.abs(d.vel.z); p.z = this.bz - wc; d.vel.z = -Math.abs(d.vel.z) * 0.5; }
+    if (ix > 1.5 || iz > 1.5) this.dieSound(d, Math.min(1, Math.max(ix, iz) / 8) * 0.7);
     // rotation
     const w = d.angVel, wl = w.length();
     if (wl > 1e-4) {
@@ -375,6 +390,7 @@ export class Tray {
     let pid = null, die = null, moved = false, sx = 0, sy = 0, lpT = 0, trail = [], off = null;
     this.el.addEventListener('pointerdown', (e) => {
       if (pid !== null) return;
+      if (e.target.closest('button')) return; // tap UI (? / son) : pas de capture, le clic passe
       const d = this.pick(e);
       if (!d || d.mode === 'fly' || d.mode === 'settle' || d.mode === 'spawn') return;
       pid = e.pointerId; die = d; moved = false;

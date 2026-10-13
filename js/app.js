@@ -2,6 +2,7 @@
 import { DICE } from './config.js';
 import { Tray } from './tray.js';
 import { renderThumbs } from './thumbs.js';
+import { SoundBank } from './sound.js';
 
 const picker = document.getElementById('picker');
 const trayEl = document.getElementById('tray');
@@ -17,12 +18,19 @@ function toast(msg, ms = 2200) {
   toastT = setTimeout(() => toastEl.classList.remove('show'), ms);
 }
 
+const sound = new SoundBank();
+// Déblocage autoplay (mobile) : premier geste → contexte actif.
+window.addEventListener('pointerdown', () => sound.unlock(), { passive: true });
+window.addEventListener('pointerup', () => sound.unlock(), { passive: true });
+window.addEventListener('keydown', () => sound.unlock());
+
 const tray = new Tray(trayEl, {
   onTotal: (t) => {
     if (t == null) totalEl.hidden = true;
     else { totalEl.textContent = t; totalEl.hidden = false; }
   },
   toast,
+  sound,
 });
 
 DICE.forEach((def) => {
@@ -55,6 +63,22 @@ document.getElementById('clearBtn').addEventListener('click', () => {
   toast('Tapis vidé');
 });
 totalEl.addEventListener('click', () => tray.hideTotal());
+const soundBtn = document.getElementById('soundBtn');
+function paintSound() {
+  soundBtn.textContent = sound.enabled ? '🔊' : '🔇';
+  soundBtn.setAttribute('aria-label', sound.enabled ? 'Couper le son' : 'Activer le son');
+}
+soundBtn.addEventListener('click', () => {
+  sound.unlock();
+  sound.setEnabled(!sound.enabled);
+  paintSound();
+  const st = sound.state();
+  const detail = st === 'running' ? 'moteur actif'
+    : st === 'suspended' ? 'moteur en pause — retouchez' : st;
+  toast(sound.enabled ? `🔊 Son activé (${detail})` : '🔇 Son coupé');
+  if (sound.enabled) sound.settle(); // bip de confirmation
+});
+paintSound();
 document.getElementById('helpBtn').addEventListener('click', () => { helpModal.hidden = false; });
 document.getElementById('hClose').addEventListener('click', () => { helpModal.hidden = true; });
 helpModal.addEventListener('click', (e) => { if (e.target === helpModal) helpModal.hidden = true; });
