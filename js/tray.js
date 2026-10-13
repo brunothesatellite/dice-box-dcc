@@ -110,6 +110,7 @@ export class Tray {
     this.typeCount[def.label] = k + 1;
     const bg = pickShade(def.color, k);
     const group = buildDie(def, bg);
+    const sizeR = DIE_R * (def.size || 1); // gabarit par type (lisibilité)
     group.scale.setScalar(0.01);
     group.rotation.set(Math.random() * 6.28, Math.random() * 6.28, Math.random() * 6.28);
     const p = this.freeSpot();
@@ -117,6 +118,7 @@ export class Tray {
     this.scene.add(group);
     const d = {
       def, bg, group, value: null, faceN: null, twist: 0, mode: 'spawn', spawnT: 0,
+      sizeR, coll: DIE_COLL * (def.size || 1),
       vel: new THREE.Vector3(), angVel: new THREE.Vector3(),
       flyTime: 0, settleT: 0, fromQ: new THREE.Quaternion(), toQ: new THREE.Quaternion(),
       badge: null, thrown: false,
@@ -247,8 +249,8 @@ export class Tray {
     if (d.mode === 'spawn') {
       d.spawnT += dt;
       const t = Math.min(1, d.spawnT / 0.25);
-      d.group.scale.setScalar(Math.max(0.01, DIE_R * t));
-      if (t >= 1) { d.group.scale.setScalar(DIE_R); d.mode = 'rest'; }
+      d.group.scale.setScalar(Math.max(0.01, d.sizeR * t));
+      if (t >= 1) { d.group.scale.setScalar(d.sizeR); d.mode = 'rest'; }
       return;
     }
     if (d.mode !== 'fly' && d.mode !== 'slide') return;
@@ -267,10 +269,11 @@ export class Tray {
     if (d.vel.y === 0) { d.vel.x *= Math.exp(-1.8 * dt); d.vel.z *= Math.exp(-1.8 * dt); }
     d.angVel.multiplyScalar(Math.exp(-1.6 * dt));
     // murs
-    if (p.x < -this.bx + DIE_COLL) { p.x = -this.bx + DIE_COLL; d.vel.x = Math.abs(d.vel.x) * 0.5; }
-    if (p.x > this.bx - DIE_COLL) { p.x = this.bx - DIE_COLL; d.vel.x = -Math.abs(d.vel.x) * 0.5; }
-    if (p.z < -this.bz + DIE_COLL) { p.z = -this.bz + DIE_COLL; d.vel.z = Math.abs(d.vel.z) * 0.5; }
-    if (p.z > this.bz - DIE_COLL) { p.z = this.bz - DIE_COLL; d.vel.z = -Math.abs(d.vel.z) * 0.5; }
+    const wc = d.coll;
+    if (p.x < -this.bx + wc) { p.x = -this.bx + wc; d.vel.x = Math.abs(d.vel.x) * 0.5; }
+    if (p.x > this.bx - wc) { p.x = this.bx - wc; d.vel.x = -Math.abs(d.vel.x) * 0.5; }
+    if (p.z < -this.bz + wc) { p.z = -this.bz + wc; d.vel.z = Math.abs(d.vel.z) * 0.5; }
+    if (p.z > this.bz - wc) { p.z = this.bz - wc; d.vel.z = -Math.abs(d.vel.z) * 0.5; }
     // rotation
     const w = d.angVel, wl = w.length();
     if (wl > 1e-4) {
@@ -298,7 +301,7 @@ export class Tray {
       if (a.mode === 'settle' || b.mode === 'settle') continue;
       const pa = a.group.position, pb = b.group.position;
       const dx = pb.x - pa.x, dz = pb.z - pa.z;
-      const dist = Math.hypot(dx, dz), min = DIE_COLL * 2;
+      const dist = Math.hypot(dx, dz), min = a.coll + b.coll;
       if (dist < min && dist > 1e-4) {
         const nx = dx / dist, nz = dz / dist, ov = (min - dist) / 2;
         pa.x -= nx * ov; pa.z -= nz * ov;
@@ -333,9 +336,9 @@ export class Tray {
     }
     this.collide();
     // badges projetés
-    const rpx = DIE_R / this.scale;
     for (const d of this.dice) {
       if (!d.badge) continue;
+      const rpx = d.sizeR / this.scale;
       const s = this.toScreen(d.group.position);
       d.badge.style.transform = `translate(${s.x + rpx * 0.55}px,${s.y - rpx * 1.15}px)`;
     }
@@ -387,9 +390,9 @@ export class Tray {
       if (moved) {
         const hit = this.planeHit(e);
         if (hit) {
-          const p = die.group.position;
-          p.x = Math.min(Math.max(hit.x + off.x, -this.bx + DIE_COLL), this.bx - DIE_COLL);
-          p.z = Math.min(Math.max(hit.z + off.z, -this.bz + DIE_COLL), this.bz - DIE_COLL);
+          const p = die.group.position, bc = die.coll;
+          p.x = Math.min(Math.max(hit.x + off.x, -this.bx + bc), this.bx - bc);
+          p.z = Math.min(Math.max(hit.z + off.z, -this.bz + bc), this.bz - bc);
           this.pushOthers(die);
         }
         trail.push({ t: performance.now(), x: e.clientX, y: e.clientY });
@@ -425,7 +428,7 @@ export class Tray {
       if (o === d || o.mode === 'fly' || o.mode === 'settle') continue;
       const q = o.group.position;
       const dx = q.x - p.x, dz = q.z - p.z;
-      const dist = Math.hypot(dx, dz), min = DIE_COLL * 2;
+      const dist = Math.hypot(dx, dz), min = d.coll + o.coll;
       if (dist < min && dist > 1e-4) {
         q.x += (dx / dist) * (min - dist);
         q.z += (dz / dist) * (min - dist);

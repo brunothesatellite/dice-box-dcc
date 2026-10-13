@@ -30,7 +30,7 @@ function cubeLanding(solid) {
   return landing;
 }
 // Projection planaire d'une face sur l'axe dominant -> UV dans sa case d'atlas.
-function faceUVs(verts, face, cell, cols, atlasW, atlasH) {
+function faceUVs(verts, face, cell, cols, atlasW, atlasH, stretch = false) {
   const n = faceNormalV(verts, face);
   const hint = Math.abs(n.y) > 0.9 ? new THREE.Vector3(0, 0, 1) : new THREE.Vector3(0, 1, 0);
   const uA = new THREE.Vector3().crossVectors(hint, n).normalize();
@@ -40,16 +40,42 @@ function faceUVs(verts, face, cell, cols, atlasW, atlasH) {
     const dx = verts[i][0] - p0[0], dy = verts[i][1] - p0[1], dz = verts[i][2] - p0[2];
     return [dx * uA.x + dy * uA.y + dz * uA.z, dx * vA.x + dy * vA.y + dz * vA.z];
   });
-  const us = dots.map((q) => q[0]), vs = dots.map((q) => q[1]);
-  const minU = Math.min(...us), maxU = Math.max(...us);
-  const minV = Math.min(...vs), maxV = Math.max(...vs);
+  // Centre sur le centroïde géométrique de la face (et non le centre de la
+  // boîte englobante) : sur un triangle, le centre de la boîte est décalé —
+  // le chiffre, dessiné au centre de la case, semblait alors de travers.
   const m = 7; // marge intérieure de case (chiffres larges et lisibles)
   const cx = (cell % cols) * CELL, cy = Math.floor(cell / cols) * CELL;
+  if (stretch) { // rendu v0.2 validé : boîte englobante -> case, étirement assumé
+    let minU = Infinity, maxU = -Infinity, minV = Infinity, maxV = -Infinity;
+    for (const [du, dv] of dots) {
+      if (du < minU) minU = du;
+      if (du > maxU) maxU = du;
+      if (dv < minV) minV = dv;
+      if (dv > maxV) maxV = dv;
+    }
+    return dots.map(([du, dv]) => {
+      const fu = (du - minU) / ((maxU - minU) || 1);
+      const fv = (dv - minV) / ((maxV - minV) || 1);
+      const u = (cx + m + fu * (CELL - 2 * m)) / atlasW;
+      const y = cy + CELL - m - fv * (CELL - 2 * m); // sens atlas v0.2 inchangé
+      return [u, 1 - y / atlasH];
+    });
+  }
+  let cU = 0, cV = 0;
+  for (const [du, dv] of dots) { cU += du; cV += dv; }
+  cU /= dots.length; cV /= dots.length;
+  let maxU = 0, maxV = 0;
+  for (const [du, dv] of dots) {
+    maxU = Math.max(maxU, Math.abs(du - cU));
+    maxV = Math.max(maxV, Math.abs(dv - cV));
+  }
+  const half = (CELL - 2 * m) / 2;
+  // Échelle UNIFORME (facteur unique) : le glyphe garde son aspect sur la face.
+  const s = Math.min(half / (maxU || 1), half / (maxV || 1));
   return dots.map(([du, dv]) => {
-    const fu = (du - minU) / ((maxU - minU) || 1);
-    const fv = (dv - minV) / ((maxV - minV) || 1);
-    const u = (cx + m + fu * (CELL - 2 * m)) / atlasW;
-    const v = 1 - (cy + CELL - m - fv * (CELL - 2 * m)) / atlasH;
+    const u = (cx + CELL / 2 + (du - cU) * s) / atlasW;
+    const y = cy + CELL / 2 - (dv - cV) * s; // axe vertical : sens atlas inchangé
+    const v = 1 - y / atlasH;
     return [u, v];
   });
 }
@@ -67,7 +93,7 @@ function buildGeometry(def) {
   const pos = [], nrm = [], uv = [];
   const faceNormals = s.faces.map((f) => faceNormalV(s.verts, f));
   s.faces.forEach((face, fi) => {
-    const uvs = faceUVs(s.verts, face, valueOfFace[fi], Acols, AW, AH);
+    const uvs = faceUVs(s.verts, face, valueOfFace[fi], Acols, AW, AH, !!def.stretchUV);
     for (let k = 1; k < face.length - 1; k++) {
       for (const vi of [face[0], face[k], face[k + 1]]) {
         const v = s.verts[vi];
