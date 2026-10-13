@@ -201,12 +201,18 @@ export class Tray {
   showBadge(d) {
     if (d.badge) d.badge.remove();
     const el = document.createElement('div');
-    el.className = 'bdg pop';
-    el.textContent = formatValue(d.def, d.value);
+    el.className = 'bdg';
+    el.innerHTML = '<span>' + formatValue(d.def, d.value) + '</span>';
     el.style.borderColor = d.def.color;
     el.style.color = '#ffffff';
     this.blayer.appendChild(el);
     d.badge = el;
+    this.placeBadge(d); // positionné de suite, même pendant l'anim pop
+  }
+  placeBadge(d) {
+    const s = this.toScreen(d.group.position);
+    const rpx = DIE_R / this.scale;
+    d.badge.style.transform = `translate(${s.x + rpx * 0.55}px,${s.y - rpx * 1.15}px)`;
   }
   showTotal() {
     const s = countTotal(this.dice.map((d) => ({ sides: d.def.sides, pct: !!d.def.pct, value: d.value })));
@@ -303,11 +309,9 @@ export class Tray {
     }
     this.collide();
     // badges projetés
-    const rpx = DIE_R / this.scale;
     for (const d of this.dice) {
       if (!d.badge) continue;
-      const s = this.toScreen(d.group.position);
-      d.badge.style.transform = `translate(${s.x + rpx * 0.55}px,${s.y - rpx * 1.15}px)`;
+      this.placeBadge(d);
     }
     this.renderer.render(this.scene, this.camera);
   }

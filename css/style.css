@@ -53,7 +53,7 @@ body{
   display:flex;align-items:center;justify-content:center;
   font-weight:800;font-size:15px;text-shadow:0 1px 2px rgba(0,0,0,.7);pointer-events:none;
 }
-.bdg.pop{animation:badgepop .3s ease-out}
+.bdg>span{display:block;animation:badgepop .3s ease-out}
 @keyframes badgepop{0%{transform:scale(0)}70%{transform:scale(1.3)}100%{transform:scale(1)}}
 #helpBtn{
   position:absolute;top:10px;right:10px;width:36px;height:36px;border-radius:50%;
@@ -112,5 +112,5 @@ body{
   .pick img{width:44px;height:44px}
 }
 @media (prefers-reduced-motion:reduce){
-  .bdg.pop{animation:none}
+  .bdg>span{animation:none}
 }

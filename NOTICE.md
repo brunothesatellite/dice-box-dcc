@@ -24,3 +24,8 @@ Merci à l'auteur — si vous redistribuez ce projet, conservez cette attributio
 
 100 % générées à l'exécution (canvas : chiffres + pastilles D7).
 Aucune image, police ou modèle tiers.
+
+## Prototype physique (branche `evol-physique`)
+
+- `vendor/cannon-es.js` (v0.20.0) : [cannon-es](https://github.com/pmndrs/cannon-es),
+  MIT, voir `vendor/CANNON-LICENSE.txt` (licence vérifiée au vendoring).
