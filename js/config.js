@@ -13,7 +13,7 @@ export const DICE = [
   { sides: 12, label: 'D12', color: '#9a6a2f', kind: 'd12' },
   // stretchUV : faces très allongées — rendu v0.2 assumé (chiffres étirés).
   { sides: 14, label: 'D14', color: '#7ba428', kind: 'd14', fontScale: 0.8, size: 1.15, stretchUV: true },
-  { sides: 16, label: 'D16', color: '#64748b', kind: 'd16', fontScale: 0.8, size: 1.15, stretchUV: true },
+  { sides: 16, label: 'D16', color: '#64748b', kind: 'd16', fontScale: 0.8, size: 1.35, stretchUV: true },
   { sides: 20, label: 'D20', color: '#23262b', kind: 'd20', fontScale: 0.8, size: 1.2 },
   { sides: 24, label: 'D24', color: '#9aa7b5', kind: 'd24' },
   { sides: 30, label: 'D30', color: '#f2ead8', kind: 'd30', fontScale: 0.72, size: 1.15 },
