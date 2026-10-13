@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0a0f0c">
+<title>Dice Box DCC — Maquette IHM</title>
+<style>
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{height:100%}
+body{
+  margin:0;background:#070b09;color:#f3efe4;
+  font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  height:100dvh;display:flex;flex-direction:column;overflow:hidden;
+  touch-action:manipulation;-webkit-tap-highlight-color:transparent;
+  -webkit-touch-callout:none;user-select:none;-webkit-user-select:none;
+}
+/* ---------- Picker : 1 ligne, ordre croissant ---------- */
+#pickerBar{
+  background:#0d1512;border-bottom:1px solid #000;
+  padding:max(8px,env(safe-area-inset-top)) 8px 8px;
+}
+#picker{
+  display:grid;grid-template-columns:repeat(7,1fr);gap:6px;padding:2px 4px 6px;
+  scrollbar-width:thin;touch-action:manipulation;
+}
+.pick{
+  width:auto;min-width:0;border:1px solid #ffffff22;background:#16211c;
+  border-radius:12px;padding:6px 2px 4px;color:inherit;cursor:pointer;
+  display:flex;flex-direction:column;align-items:center;gap:2px;
+  font:inherit;touch-action:manipulation;
+}
+.pick:active{transform:scale(.93)}
+.pick svg{width:42px;height:42px;pointer-events:none}
+.pick span{font-size:12px;font-weight:700;letter-spacing:.5px;pointer-events:none}
+/* ---------- Tapis : feutrine + cadre bois ---------- */
+#stage{flex:1;min-height:0;display:flex;padding:10px}
+#frame{
+  flex:1;min-height:0;border-radius:20px;padding:12px;
+  border:1px solid #3d2712;
+  background:
+    linear-gradient(135deg,rgba(255,255,255,.14),rgba(0,0,0,.28)),
+    repeating-linear-gradient(93deg,#7a4e2c 0 26px,#6f4526 26px 28px,#82562f 28px 54px),
+    #6f4526;
+  box-shadow:0 10px 30px rgba(0,0,0,.6);
+}
+#tray{
+  position:relative;width:100%;height:100%;border-radius:12px;overflow:visible;
+  background:radial-gradient(120% 100% at 50% 20%,#127a44 0%,#0c5c31 45%,#073a20 100%);
+  box-shadow:inset 0 0 70px rgba(0,0,0,.6),inset 0 2px 10px rgba(0,0,0,.65);
+  touch-action:none;
+}
+#tray::after{ /* grain feutrine */
+  content:"";position:absolute;inset:0;pointer-events:none;opacity:.55;border-radius:12px;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.07 0'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+/* ---------- Dés (maquette DOM/SVG, pas encore 3D) ---------- */
+.die{position:absolute;left:0;top:0;touch-action:none;cursor:grab;will-change:transform;
+  filter:drop-shadow(0 6px 6px rgba(0,0,0,.45));z-index:2}
+.die.drag{cursor:grabbing;z-index:4}
+.die .gfx{width:100%;height:100%}
+.die svg{display:block;width:100%;height:100%}
+.die .val{
+  position:absolute;top:-9px;right:-9px;min-width:27px;height:27px;padding:0 6px;
+  border-radius:14px;background:rgba(8,12,10,.88);border:2px solid var(--dc,#fff);
+  display:flex;align-items:center;justify-content:center;
+  font-weight:800;font-size:14px;text-shadow:0 1px 2px rgba(0,0,0,.7);pointer-events:none;
+}
+.die .val.pop{animation:badgepop .3s ease-out}
+.gfx.spawn{animation:diepop .32s ease-out}
+.gfx.wob{animation:wob .6s ease-in-out}
+@keyframes diepop{0%{transform:scale(.2)}60%{transform:scale(1.15)}100%{transform:scale(1)}}
+@keyframes wob{0%{transform:rotate(0) scale(1)}25%{transform:rotate(-24deg) scale(1.12)}
+  55%{transform:rotate(18deg) scale(.94)}80%{transform:rotate(-8deg) scale(1.03)}
+  100%{transform:rotate(0) scale(1)}}
+@keyframes badgepop{0%{transform:scale(0)}70%{transform:scale(1.3)}100%{transform:scale(1)}}
+/* ---------- UI flottante ---------- */
+#helpBtn{
+  position:absolute;top:10px;right:10px;width:36px;height:36px;border-radius:50%;
+  background:rgba(8,12,10,.7);color:#f3efe4;border:1px solid #ffffff44;
+  font-size:18px;font-weight:800;cursor:pointer;z-index:6;touch-action:manipulation;
+}
+#toast{
+  position:absolute;top:12px;left:50%;transform:translateX(-50%);z-index:6;
+  background:rgba(8,12,10,.85);border:1px solid #ffffff33;border-radius:999px;
+  padding:7px 14px;font-size:13px;font-weight:600;white-space:nowrap;
+  opacity:0;transition:opacity .25s;pointer-events:none;max-width:92%;
+}
+#toast.show{opacity:1}
+#total{
+  background:linear-gradient(#ffd76a,#e8a81c);color:#3a2503;border:1px solid #00000055;
+  border-radius:999px;padding:8px 16px;font-size:16px;font-weight:800;cursor:pointer;
+  box-shadow:0 4px 14px rgba(0,0,0,.5);white-space:nowrap;min-width:0;
+}
+#actionbar{
+  display:flex;align-items:center;justify-content:space-between;gap:12px;
+  padding:10px 12px max(12px,env(safe-area-inset-bottom));
+  background:#0d1512;border-top:1px solid #000;
+}
+@media (max-width:480px){ /* 412 px : tout tient sur une ligne */
+  #actionbar{gap:8px;padding:10px 8px max(10px,env(safe-area-inset-bottom))}
+  .act{padding:11px 14px;font-size:15px}
+  #total{font-size:15px;padding:8px 12px}
+}
+.act{
+  border-radius:999px;padding:12px 24px;font-size:16px;font-weight:800;
+  border:1px solid #00000055;box-shadow:0 4px 12px rgba(0,0,0,.5);cursor:pointer;
+  font:inherit;touch-action:manipulation;min-height:48px;
+}
+.act:active{transform:scale(.95)}
+.act.primary{background:linear-gradient(#ffd76a,#e8a81c);color:#3a2503}
+.act.ghost{background:rgba(16,29,23,.85);color:#f3efe4;border-color:#ffffff33}
+/* ---------- Modales ---------- */
+.modal{position:fixed;inset:0;z-index:20;background:rgba(0,0,0,.62);
+  display:flex;align-items:center;justify-content:center;padding:24px}
+.card{background:#14201a;border:1px solid #ffffff2a;border-radius:16px;
+  padding:22px;width:min(360px,100%);box-shadow:0 12px 40px rgba(0,0,0,.6)}
+.card h2{margin:0 0 10px;font-size:18px}
+.card p{margin:0 0 18px;font-size:14px;line-height:1.55;color:#d8d2c2}
+.row{display:flex;gap:10px;justify-content:flex-end}
+.btn{border-radius:10px;padding:11px 18px;font-size:15px;font-weight:700;cursor:pointer;
+  font:inherit;border:1px solid #ffffff33;background:#24352c;color:#f3efe4;min-height:46px}
+.btn.danger{background:linear-gradient(#e0574b,#b23a30);color:#fff;border-color:#00000055}
+.card ul{margin:0 0 6px;padding-left:20px;font-size:14px;line-height:1.9;color:#d8d2c2}
+/* ---------- PC ---------- */
+@media (min-width:900px){
+  #stage{justify-content:center}
+  #frame{width:min(1060px,100%)}
+  #picker{grid-template-columns:repeat(14,1fr)}
+  .act{padding:13px 30px;font-size:17px}
+}
+@media (prefers-reduced-motion:reduce){
+  .gfx.spawn,.gfx.wob,.die .val.pop{animation:none}
+}
+</style>
+</head>
+<body>
+
+<header id="pickerBar"><div id="picker" role="toolbar" aria-label="Choisir un dé"></div></header>
+
+<main id="stage">
+  <div id="frame">
+    <div id="tray" aria-label="Tapis de dés">
+      <button id="helpBtn" aria-label="Aide et gestes">?</button>
+      <div id="toast" role="status"></div>
+    </div>
+  </div>
+</main>
+
+<footer id="actionbar">
+  <button id="clearBtn" class="act ghost">🗑 <span>Vider</span></button>
+  <div id="total" hidden></div>
+  <button id="rollBtn" class="act primary">🎲 <span>Lancer</span></button>
+</footer>
+
+<div id="helpModal" class="modal" hidden>
+  <div class="card" role="dialog" aria-modal="true" aria-labelledby="hTitle">
+    <h2 id="hTitle">Gestes (maquette)</h2>
+    <ul>
+      <li>Toucher un dé <b>en haut</b> : l'ajouter au tapis</li>
+      <li>Toucher un dé <b>sur le tapis</b> : le lancer</li>
+      <li><b>Appui long</b> sur un dé : le retirer</li>
+      <li><b>Glisser-déposer</b> : déplacer · <b>lâcher avec élan</b> : lancer manuel</li>
+      <li><b>D%</b> : dizaines (00–90) · avec un D10 : 00 + 0 = 100</li>
+      <li>🎲 <b>Lancer</b> : lance tous les dés (+ total, clic dessus = masquer)</li>
+      <li>🗑 <b>Vider</b> : tout retirer (avec confirmation)</li>
+    </ul>
+    <div class="row"><button id="hClose" class="btn">Fermer</button></div>
+  </div>
+</div>
+
+<script>
+(function(){
+'use strict';
+/* ================= Données ================= */
+var TRAY_MAX = 10, LONGPRESS_MS = 500, TAP_SLOP = 10, FLING_MIN = 260;
+var OFFS_DARK = [0, 34, -17, 17, -34];  // base sombre : le 2e est beaucoup plus clair
+var OFFS_LIGHT = [0, -34, 17, -17, 34]; // base claire : le 2e est beaucoup plus sombre
+var DICE = [
+  {sides:3,  label:'D3',  color:'#d94848', kind:'d3'},
+  {sides:4,  label:'D4',  color:'#ef7d23', kind:'d4'},
+  {sides:5,  label:'D5',  color:'#d9a416', kind:'d5'},
+  {sides:6,  label:'D6',  color:'#12a0a8', kind:'cube'},
+  {sides:7,  label:'D7',  color:'#2f6fed', kind:'sph7'},
+  {sides:8,  label:'D8',  color:'#6a4de0', kind:'octa'},
+  {sides:10, label:'D10', color:'#c93b8f', kind:'trap'},
+  {sides:10, label:'D%',  color:'#f272a8', kind:'trap', pct:true},
+  {sides:12, label:'D12', color:'#9a6a2f', kind:'d12'},
+  {sides:14, label:'D14', color:'#7ba428', kind:'trap'},
+  {sides:16, label:'D16', color:'#64748b', kind:'bipy'},
+  {sides:20, label:'D20', color:'#23262b', kind:'ico'},
+  {sides:24, label:'D24', color:'#9aa7b5', kind:'poly12'},
+  {sides:30, label:'D30', color:'#f2ead8', kind:'poly16'}
+];
+/* ================= Couleurs ================= */
+function hx(h){h=h.replace('#','');return [parseInt(h.slice(0,2),16),parseInt(h.slice(2,4),16),parseInt(h.slice(4,6),16)];}
+function toHex(r,g,b){return '#'+[r,g,b].map(function(v){v=Math.max(0,Math.min(255,Math.round(v)));return v.toString(16).padStart(2,'0');}).join('');}
+function mix(a,b,t){var A=hx(a),B=hx(b);return toHex(A[0]+(B[0]-A[0])*t,A[1]+(B[1]-A[1])*t,A[2]+(B[2]-A[2])*t);}
+function shade(hex,dl){return dl>=0?mix(hex,'#ffffff',dl/100):mix(hex,'#000000',-dl/100);}
+function luminance(hex){var c=hx(hex).map(function(v){v/=255;return v<=0.03928?v/12.92:Math.pow((v+0.055)/1.055,2.4);});return 0.2126*c[0]+0.7152*c[1]+0.0722*c[2];}
+function inkFor(hex){return luminance(hex)>0.45?'#1d2126':'#ffffff';}
+/* ================= Icônes SVG low-poly ================= */
+var ST=' stroke="rgba(0,0,0,.4)" stroke-width="1.5" stroke-linejoin="round"';
+function P(pts,fill){return '<polygon points="'+pts+'" fill="'+fill+'"'+ST+'/>';}
+function ringPts(cx,cy,r,n,rot){var p=[];for(var i=0;i<n;i++){var a=((rot==null?-90:rot)+i*360/n)*Math.PI/180;p.push((cx+r*Math.cos(a)).toFixed(1)+','+(cy+r*Math.sin(a)).toFixed(1));}return p.join(' ');}
+function icon(kind,c){
+  var cl=shade(c,46), cd=shade(c,-46), s='';
+  ST=' stroke="'+inkFor(c)+'" stroke-opacity="0.55" stroke-width="1.5" stroke-linejoin="round"';
+  if(kind==='cube'){
+    s=P('32,8 53,19.5 32,31 11,19.5',cl)+P('11,19.5 32,31 32,56 11,44.5',c)+P('53,19.5 32,31 32,56 53,44.5',cd);
+  }else if(kind==='d4'){
+    s=P('32,9 9,51 32,37',c)+P('32,9 32,37 55,51',cl)+P('9,51 55,51 32,37',cd);
+  }else if(kind==='octa' || kind==='bipy'){
+    var T=kind==='bipy'?'32,3':'32,6', B=kind==='bipy'?'32,61':'32,58',
+        L=kind==='bipy'?'16,32':'10,32', R=kind==='bipy'?'48,32':'54,32';
+    s=P(T+' '+L+' 32,32',cl)+P(T+' 32,32 '+R,c)+P(L+' 32,32 '+B,c)+P('32,32 '+R+' '+B,cd);
+  }else if(kind==='trap'){
+    s=P('32,6 52,25 45,45 32,58 19,45 12,25',c)
+      +P('32,6 52,25 45,45 32,58',cd)
+      +P('32,6 12,25 32,29',cl)
+      +'<polyline points="32,6 32,58" fill="none"'+ST+'/>'
+      +'<polyline points="12,25 32,29 52,25" fill="none"'+ST+'/>'
+      +'<polyline points="19,45 32,41 45,45" fill="none"'+ST+'/>';
+  }else if(kind==='d12'){
+    var outer=ringPts(32,32,26,5), inner=ringPts(32,32,11,5);
+    s=P(outer,c)+P(inner,cl);
+    var o=outer.split(' '), inn=inner.split(' ');
+    for(var i=0;i<5;i++){s+='<line x1="'+o[i].split(',')[0]+'" y1="'+o[i].split(',')[1]+'" x2="'+inn[i].split(',')[0]+'" y2="'+inn[i].split(',')[1]+'"'+ST+'/>';}
+  }else if(kind==='ico'){
+    var hex=ringPts(32,32,26,6), tri=ringPts(32,32,12.5,3);
+    s=P(hex,c)+P(tri,cl);
+    var hv=hex.split(' '), tv=tri.split(' ');
+    for(var j=0;j<3;j++){var k=j*2;s+='<line x1="'+tv[j].split(',')[0]+'" y1="'+tv[j].split(',')[1]+'" x2="'+hv[k].split(',')[0]+'" y2="'+hv[k].split(',')[1]+'"'+ST+'/>';}
+  }else if(kind==='poly12' || kind==='poly16'){
+    var n=kind==='poly12'?12:16, ring=ringPts(32,32,26,n,0).split(' ');
+    for(var f=0;f<n;f++){s+=P('32,32 '+ring[f]+' '+ring[(f+1)%n], f%2?shade(c,-25):shade(c,25));}
+  }else if(kind==='d3'){
+    s=P('16,24 48,24 48,44 16,44',c)+P('16,24 16,44 7,34',cd)+P('48,24 48,44 57,34',cl)
+      +'<line x1="16" y1="28" x2="48" y2="28" stroke="rgba(255,255,255,.35)" stroke-width="2"/>';
+  }else if(kind==='d5'){
+    s=P('20,26 42,26 42,52 20,52',c)+P('20,26 27,15 49,15 42,26',cl)+P('42,26 49,15 49,41 42,52',cd);
+  }else if(kind==='sph7'){
+    s='<circle cx="32" cy="32" r="23" fill="'+c+'"'+ST+'/>'
+      +P('26,24 38,24 32,40',cl)
+      +'<line x1="12" y1="26" x2="24" y2="17"'+ST+'/>'
+      +'<line x1="40" y1="47" x2="52" y2="38"'+ST+'/>'
+      +'<line x1="14" y1="42" x2="26" y2="48"'+ST+'/>';
+  }
+  return '<svg viewBox="0 0 64 64" aria-hidden="true">'+s+'</svg>';
+}
+/* ================= DOM ================= */
+var picker=document.getElementById('picker'), tray=document.getElementById('tray'),
+    toastEl=document.getElementById('toast'), totalEl=document.getElementById('total'),
+    rollBtn=document.getElementById('rollBtn'), clearBtn=document.getElementById('clearBtn'),
+    helpBtn=document.getElementById('helpBtn'), helpModal=document.getElementById('helpModal');
+var dice=[], typeCount={}, W=0, H=0, R=26, pendingTotal=0, toastT=null;
+DICE.forEach(function(d){
+  var b=document.createElement('button');
+  b.className='pick'; b.setAttribute('aria-label','Ajouter un '+d.label);
+  b.innerHTML=icon(d.kind,d.color)+'<span>'+d.label+'</span>';
+  b.addEventListener('click',function(){addDie(d);});
+  picker.appendChild(b);
+});
+function measure(){
+  var r=tray.getBoundingClientRect(); W=r.width; H=r.height;
+  R=Math.round(Math.max(22,Math.min(30,W/15)));
+  dice.forEach(function(d){sizeEl(d);placeEl(d);});
+}
+window.addEventListener('resize',measure);
+function toast(msg,ms){
+  toastEl.textContent=msg; toastEl.classList.add('show');
+  clearTimeout(toastT); toastT=setTimeout(function(){toastEl.classList.remove('show');},ms||2200);
+}
+/* ================= Dés ================= */
+function sizeEl(d){d.el.style.width=(R*2)+'px'; d.el.style.height=(R*2)+'px';}
+function placeEl(d){d.el.style.transform='translate('+(d.x-R)+'px,'+(d.y-R)+'px)';}
+function addDie(def){
+  if(dice.length>=TRAY_MAX){toast('Tapis plein ('+TRAY_MAX+' dés max)');return;}
+  var k=typeCount[def.label]||0; typeCount[def.label]=k+1; // compteur par type : pas de re-melange
+  var offs=luminance(def.color)>0.45?OFFS_LIGHT:OFFS_DARK;
+  var col=shade(def.color,offs[k%offs.length]);
+  var el=document.createElement('div');
+  el.className='die'; el.style.setProperty('--dc',def.color);
+  el.innerHTML='<div class="gfx spawn">'+icon(def.kind,col)+'</div><span class="val" hidden></span>';
+  el.setAttribute('aria-label',def.label+' sur le tapis');
+  tray.appendChild(el);
+  var d={def:def,el:el,gfx:el.firstChild,valEl:el.lastChild,col:col,x:0,y:0,vx:0,vy:0,
+         r:R*0.72,value:null,thrown:false,moving:false};
+  sizeEl(d);
+  var pos=freeSpot(); d.x=pos.x; d.y=pos.y; placeEl(d);
+  setTimeout(function(){d.gfx.classList.remove('spawn');},350);
+  wireGestures(d);
+  dice.push(d);
+  hideTotal(); // la composition du tapis a changé
+}
+function freeSpot(){
+  var cx=W/2, cy=H/2-20, best={x:cx,y:cy}, bestScore=1e9;
+  for(var i=0;i<24;i++){
+    var a=Math.random()*Math.PI*2, rr=Math.random()*Math.min(W,H)*0.32;
+    var x=Math.min(Math.max(cx+Math.cos(a)*rr,R),W-R),
+        y=Math.min(Math.max(cy+Math.sin(a)*rr,R),H-R), s=0;
+    dice.forEach(function(o){var dd=Math.hypot(o.x-x,o.y-y); if(dd<o.r+R) s+=(o.r+R-dd);});
+    if(s<bestScore){bestScore=s;best={x:x,y:y};}
+    if(s===0) break;
+  }
+  return best;
+}
+function setValue(d,v){
+  d.value=v;
+  d.valEl.hidden=false; d.valEl.textContent=d.def.pct?(v===0?'00':String(v)):v; d.valEl.style.color=inkFor(d.col||'#888');
+  d.valEl.classList.remove('pop'); void d.valEl.offsetWidth; d.valEl.classList.add('pop');
+}
+function rollOf(d){ // maquette : tirage simple (crypto en vraie app)
+  if(d.def.pct) return Math.floor(Math.random()*10)*10; // D% : dizaines 00-90
+  return 1+Math.floor(Math.random()*d.def.sides);
+}
+function rollSingle(d){
+  if(d.moving) return;
+  hideTotal();
+  d.gfx.classList.remove('wob'); void d.gfx.offsetWidth; d.gfx.classList.add('wob');
+  setTimeout(function(){setValue(d,rollOf(d));},620);
+}
+/* ================= Gestes : tap / appui long / drag / fling ================= */
+function wireGestures(d){
+  var el=d.el, pid=null, sx=0, sy=0, ox=0, oy=0, moved=false,
+      lpTimer=null, trail=[];
+  el.addEventListener('pointerdown',function(e){
+    if(pid!==null) return;
+    pid=e.pointerId; moved=false; trail=[{t:performance.now(),x:e.clientX,y:e.clientY}];
+    var r=tray.getBoundingClientRect(); sx=e.clientX-r.left; sy=e.clientY-r.top;
+    ox=d.x; oy=d.y;
+    try{el.setPointerCapture(pid);}catch(_){}
+    el.classList.add('drag');
+    lpTimer=setTimeout(function(){ // appui long = retirer
+      if(pid===null||moved) return;
+      pid=null; removeDie(d); toast(d.def.label+' retiré');
+    },LONGPRESS_MS);
+    e.preventDefault();
+  });
+  el.addEventListener('pointermove',function(e){
+    if(e.pointerId!==pid) return;
+    var r=tray.getBoundingClientRect();
+    var nx=ox+(e.clientX-r.left-sx), ny=oy+(e.clientY-r.top-sy);
+    if(!moved && Math.hypot(nx-ox,ny-oy)>TAP_SLOP){moved=true;clearTimeout(lpTimer);}
+    if(moved){
+      d.x=Math.min(Math.max(nx,d.r),W-d.r); d.y=Math.min(Math.max(ny,d.r),H-d.r);
+      d.vx=0; d.vy=0; placeEl(d); pushOthers(d);
+      trail.push({t:performance.now(),x:e.clientX,y:e.clientY});
+      if(trail.length>6) trail.shift();
+    }
+  });
+  function end(e){
+    if(e.pointerId!==pid) return;
+    pid=null; clearTimeout(lpTimer); el.classList.remove('drag');
+    if(moved){ // lâcher : fling manuel ou simple dépôt
+      var a=trail[0], b=trail[trail.length-1], dt=Math.max(16,b.t-a.t)/1000,
+          vx=(b.x-a.x)/dt, vy=(b.y-a.y)/dt, sp=Math.hypot(vx,vy);
+      if(sp>FLING_MIN){
+        var cl=Math.min(sp,1600)/sp; d.vx=vx*cl; d.vy=vy*cl;
+        d.thrown=true; d.moving=true; d.valEl.hidden=true;
+      }
+    }else{ // tap = rouler (si l'appui long n'a pas déjà supprimé le dé)
+      if(dice.indexOf(d)>=0) rollSingle(d);
+    }
+  }
+  el.addEventListener('pointerup',end);
+  el.addEventListener('pointercancel',function(e){clearTimeout(lpTimer);pid=null;el.classList.remove('drag');});
+}
+tray.addEventListener('contextmenu',function(e){e.preventDefault();});
+function pushOthers(d){
+  dice.forEach(function(o){
+    if(o===d) return;
+    var dx=o.x-d.x, dy=o.y-d.y, dist=Math.hypot(dx,dy), min=d.r+o.r;
+    if(dist<min&&dist>0.01){
+      var nx=dx/dist, ny=dy/dist, ov=min-dist;
+      o.x=Math.min(Math.max(o.x+nx*ov,o.r),W-o.r);
+      o.y=Math.min(Math.max(o.y+ny*ov,o.r),H-o.r);
+      o.vx=nx*60; o.vy=ny*60; o.moving=true; o.thrown=false;
+      placeEl(o);
+    }
+  });
+}
+function removeDie(d){
+  var i=dice.indexOf(d); if(i<0) return;
+  dice.splice(i,1); d.el.remove();
+  if(d.thrown&&pendingTotal>0){d.thrown=false;pendingTotal--;if(pendingTotal===0)showTotal();}
+  else hideTotal(); // le total affiché serait faux
+}
+var totalT=null;
+function hideTotal(){totalEl.hidden=true;clearTimeout(totalT);}
+function countedValue(d,hasPct){ // D% = dizaines ; D10 + D% = lecture percentile (10 -> 0)
+  var v=d.value||0;
+  if(d.def.pct) return v;
+  if(hasPct&&d.def.sides===10) return v%10;
+  return v;
+}
+function showTotal(){
+  var hasPct=dice.some(function(d){return d.def.pct;});
+  var s=dice.reduce(function(t,d){return t+countedValue(d,hasPct);},0);
+  if(hasPct){ // 00 + 0 = 100 : chaque paire (D% à 00, D10 à 10) vaut 100
+    var z=dice.filter(function(d){return d.def.pct&&d.value===0;}).length;
+    var u=dice.filter(function(d){return !d.def.pct&&d.def.sides===10&&d.value===10;}).length;
+    s+=Math.min(z,u)*100;
+  }
+  totalEl.textContent='Total : '+s; totalEl.hidden=false;
+  clearTimeout(totalT); totalT=setTimeout(hideTotal,8000);
+}
+/* ================= Physique 2D (murs + collisions, pas de traversée) ================= */
+var last=performance.now();
+function frame(now){
+  var dt=Math.min(0.033,(now-last)/1000); last=now;
+  var damp=Math.exp(-2.2*dt), any=false;
+  dice.forEach(function(d){
+    if(!d.moving) return; any=true;
+    d.x+=d.vx*dt; d.y+=d.vy*dt; d.vx*=damp; d.vy*=damp;
+    if(d.x<d.r){d.x=d.r;d.vx=Math.abs(d.vx)*0.55;}
+    if(d.x>W-d.r){d.x=W-d.r;d.vx=-Math.abs(d.vx)*0.55;}
+    if(d.y<d.r){d.y=d.r;d.vy=Math.abs(d.vy)*0.55;}
+    if(d.y>H-d.r){d.y=H-d.r;d.vy=-Math.abs(d.vy)*0.55;}
+    if(Math.hypot(d.vx,d.vy)<12){d.vx=0;d.vy=0;d.moving=false;}
+    placeEl(d);
+  });
+  for(var i=0;i<dice.length;i++)for(var j=i+1;j<dice.length;j++){
+    var a=dice[i], b=dice[j], dx=b.x-a.x, dy=b.y-a.y,
+        dist=Math.hypot(dx,dy), min=a.r+b.r;
+    if(dist<min&&dist>0.01){
+      var nx=dx/dist, ny=dy/dist, ov=(min-dist)/2;
+      a.x-=nx*ov; a.y-=ny*ov; b.x+=nx*ov; b.y+=ny*ov;
+      var rv=(b.vx-a.vx)*nx+(b.vy-a.vy)*ny;
+      if(rv<0){var imp=-(1+0.6)*rv/2;a.vx-=imp*nx;a.vy-=imp*ny;b.vx+=imp*nx;b.vy+=imp*ny;
+        if(!a.moving&&(Math.abs(a.vx)+Math.abs(a.vy))>12)a.moving=true;
+        if(!b.moving&&(Math.abs(b.vx)+Math.abs(b.vy))>12)b.moving=true;}
+      placeEl(a); placeEl(b); any=true;
+    }
+  }
+  dice.forEach(function(d){ // settle : un dé lancé qui s'arrête affiche sa valeur
+    if(d.thrown&&!d.moving){d.thrown=false;setValue(d,rollOf(d));onSettled();}
+  });
+  requestAnimationFrame(frame);
+}
+function onSettled(){
+  if(pendingTotal>0){pendingTotal--;
+    if(pendingTotal===0)showTotal();
+  }
+}
+/* ================= Boutons ================= */
+totalEl.addEventListener('click',hideTotal); // clic sur le total = le masquer
+rollBtn.addEventListener('click',function(){
+  if(!dice.length){toast('Ajoute d\u2019abord un dé depuis le haut');return;}
+  hideTotal(); pendingTotal=dice.length;
+  dice.forEach(function(d,i){
+    setTimeout(function(){
+      var a=Math.random()*Math.PI*2, sp=500+Math.random()*400;
+      d.vx=Math.cos(a)*sp; d.vy=Math.sin(a)*sp;
+      d.thrown=true; d.moving=true; d.valEl.hidden=true;
+    },i*70);
+  });
+});
+clearBtn.addEventListener('click',function(){ // sans confirmation
+  if(!dice.length){toast('Le tapis est déjà vide');return;}
+  pendingTotal=0;
+  dice.slice().forEach(removeDie); toast('Tapis vidé');
+});
+helpBtn.addEventListener('click',function(){helpModal.hidden=false;});
+document.getElementById('hClose').addEventListener('click',function(){helpModal.hidden=true;});
+helpModal.addEventListener('click',function(e){if(e.target===helpModal)helpModal.hidden=true;});
+document.addEventListener('keydown',function(e){
+  if(e.key==='Escape'){helpModal.hidden=true;}
+});
+/* ================= Init ================= */
+measure();
+requestAnimationFrame(function(n){last=n;requestAnimationFrame(frame);});
+// Démo : 2 D20 (contraste même type) + 1 D8
+addDie(DICE[11]); addDie(DICE[11]); addDie(DICE[5]);
+setTimeout(measure,50);
+})();
+</script>
+</body>
+</html>

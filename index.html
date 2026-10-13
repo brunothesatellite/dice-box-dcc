@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0a0f0c">
+<title>Dice Box DCC — Dés 3D</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpolygon points='32,6 54,32 32,58 10,32' fill='%23c93b8f'/%3E%3Ccircle cx='32' cy='32' r='7' fill='%23fff'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<header id="pickerBar"><div id="picker" role="toolbar" aria-label="Choisir un dé"></div></header>
+
+<main id="stage">
+  <div id="frame">
+    <div id="tray" aria-label="Tapis de dés">
+      <button id="helpBtn" aria-label="Aide et gestes">?</button>
+      <div id="toast" role="status"></div>
+    </div>
+  </div>
+</main>
+
+<footer id="actionbar">
+  <button id="clearBtn" class="act ghost">🗑 <span>Vider</span></button>
+  <div id="total" hidden></div>
+  <button id="rollBtn" class="act primary">🎲 <span>Lancer</span></button>
+</footer>
+
+<div id="helpModal" class="modal" hidden>
+  <div class="card" role="dialog" aria-modal="true" aria-labelledby="hTitle">
+    <h2 id="hTitle">Gestes</h2>
+    <ul>
+      <li>Toucher un dé <b>en haut</b> : l'ajouter au tapis</li>
+      <li>Toucher un dé <b>sur le tapis</b> : le lancer</li>
+      <li><b>Appui long</b> sur un dé : le retirer</li>
+      <li><b>Glisser-déposer</b> : déplacer · <b>lâcher avec élan</b> : lancer manuel</li>
+      <li><b>D%</b> : dizaines (00–90) · avec un D10 : 00 + 0 = 100</li>
+      <li>🎲 <b>Lancer</b> : lance tous les dés (+ total, clic dessus = masquer)</li>
+      <li>🗑 <b>Vider</b> : tout retirer, sans confirmation</li>
+    </ul>
+    <div class="row"><button id="hClose" class="btn">Fermer</button></div>
+  </div>
+</div>
+
+<div id="fileHint" hidden>
+  Ouvre cette app via un serveur local (ex. <code>php -S localhost:8000</code>,
+  Live Server ou <code>python3 -m http.server</code>) : les modules ES ne
+  chargent pas en <code>file://</code>.
+</div>
+
+<script>
+setTimeout(function () {
+  if (!window.__booted) document.getElementById('fileHint').hidden = false;
+}, 3000);
+</script>
+<script type="module" src="js/app.js"></script>
+</body>
+</html>
