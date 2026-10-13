@@ -50,7 +50,7 @@ export class SoundBank {
     this.enabled = !!v;
     try { localStorage.setItem(KEY, this.enabled ? '1' : '0'); } catch (_) { /* noop */ }
   }
-  clack({ freq = 2400, q = 1.1, dur = 0.09, gain = 0.5, body = 220 } = {}) {
+  clack({ freq = 1200, q = 0.8, dur = 0.08, gain = 0.5, body = 150 } = {}) {
     if (!this.enabled) return;
     if (!this.ctx || this.ctx.state !== 'running') return;
     if (this.voices >= MAX_VOICES) return;
@@ -71,18 +71,18 @@ export class SoundBank {
       const o = this.ctx.createOscillator();
       o.type = 'triangle'; o.frequency.value = body * j();
       const og = this.ctx.createGain();
-      og.gain.setValueAtTime(Math.max(0.001, g0 * 0.5), t);
-      og.gain.exponentialRampToValueAtTime(0.001, t + dur * 1.5);
+      og.gain.setValueAtTime(Math.max(0.001, g0 * 0.7), t);
+      og.gain.exponentialRampToValueAtTime(0.001, t + dur * 2.0);
       o.connect(og); og.connect(this.master);
-      o.start(t); o.stop(t + dur * 1.5 + 0.03);
+      o.start(t); o.stop(t + dur * 2.0 + 0.03);
       this.voices++;
       setTimeout(() => { this.voices = Math.max(0, this.voices - 1); }, Math.ceil(dur * 1000) + 60);
     } catch (_) { /* noop */ }
   }
-  throwClack() { this.clack({ freq: 2600, dur: 0.07, gain: 0.45, body: 260 }); }
+  throwClack() { this.clack({ freq: 1300, dur: 0.06, gain: 0.4, body: 150 }); }
   bounce(s) { // s : 0..1 intensité d'impact
     if (s <= 0.05) return;
-    this.clack({ freq: 1500 + 1400 * s, dur: 0.05 + 0.06 * s, gain: 0.15 + 0.45 * s, body: 170 + 90 * s });
+    this.clack({ freq: 700 + 900 * s, dur: 0.04 + 0.05 * s, gain: 0.15 + 0.4 * s, body: 120 + 60 * s });
   }
-  settle() { this.clack({ freq: 3200, dur: 0.05, gain: 0.25, body: 300 }); }
+  settle() { this.clack({ freq: 1700, dur: 0.045, gain: 0.22, body: 180 }); }
 }
