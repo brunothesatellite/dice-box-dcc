@@ -8,8 +8,8 @@ export const DICE = [
   { sides: 6,  label: 'D6',  color: '#12a0a8', kind: 'd6' },
   { sides: 7,  label: 'D7',  color: '#2f6fed', kind: 'd7' },
   { sides: 8,  label: 'D8',  color: '#6a4de0', kind: 'd8', fontScale: 0.78 },
-  { sides: 10, label: 'D10', color: '#c93b8f', kind: 'd10', fontScale: 0.8 },
-  { sides: 10, label: 'D%',  color: '#f272a8', kind: 'd10', pct: true, fontScale: 0.7 },
+  { sides: 10, label: 'D10', color: '#c93b8f', kind: 'd10', fontScale: 0.74 },
+  { sides: 10, label: 'D%',  color: '#f272a8', kind: 'd10', pct: true, fontScale: 0.6 },
   { sides: 12, label: 'D12', color: '#9a6a2f', kind: 'd12' },
   // stretchUV : faces très allongées — rendu v0.2 assumé (chiffres étirés).
   { sides: 14, label: 'D14', color: '#7ba428', kind: 'd14', fontScale: 0.8, size: 1.15, stretchUV: true },
