@@ -60,8 +60,13 @@ function faceUVs(verts, face, cell, cols, atlasW, atlasH, stretch = false) {
       cU += du; cV += dv;
     }
     cU /= dots.length; cV /= dots.length;
-    const su = (CELL - 2 * m) / ((maxU - minU) || 1);
-    const sv = (CELL - 2 * m) / ((maxV - minV) || 1);
+    let su = (CELL - 2 * m) / ((maxU - minU) || 1);
+    let sv = (CELL - 2 * m) / ((maxV - minV) || 1);
+    // B : anisotropie plafonnée à 1.3 (D16 natif 1.84, D14 natif 1.63) —
+    // étirement résiduel discret, le reste retombe en aplat via le clamp.
+    const maxA = 1.3;
+    if (su > sv * maxA) sv = su / maxA;
+    else if (sv > su * maxA) su = sv / maxA;
     const x0 = cx + m, x1 = cx + CELL - m, y0 = cy + m, y1 = cy + CELL - m;
     return dots.map(([du, dv]) => {
       const u = Math.min(x1, Math.max(x0, cx + CELL / 2 + (du - cU) * su)) / atlasW;
