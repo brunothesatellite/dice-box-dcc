@@ -304,6 +304,82 @@ function rhombicTriacontahedron() {
   }
   return polarDual(points);
 }
+// --- D14 / D16 : nouvelles formes "type d20" (polyèdres arrondis, faces quasi régulières) ---
+// Octaèdre tronqué : 6 carrés + 8 hexagones = 14 faces, aspect bille comme le d20.
+// T = profondeur de coupe : T ≈ 0,434 rend les aires carré ≈ hexagone.
+function truncatedOctahedron() {
+  const T = 0.434;
+  const verts = [], seen = new Set();
+  const pairs = [[0, 1], [1, 0], [1, 2], [2, 1], [0, 2], [2, 0]];
+  for (const [a, b] of pairs) {
+    for (const s1 of [1, -1]) for (const s2 of [1, -1]) {
+      const v = [0, 0, 0];
+      v[a] = (1 - T) * s1;
+      v[b] = T * s2;
+      const key = v.join(',');
+      if (!seen.has(key)) { seen.add(key); verts.push(v); }
+    }
+  }
+  const faces = [...hullFaces(verts, 4), ...hullFaces(verts, 6)];
+  return { verts, faces };
+}
+// Bipyramide carrée gyro-étirée (Johnson J17) : 16 triangles équilatéraux.
+// Version d'origine (allongée, aspect amande) : conservée pour retour arrière
+// via d16J17() dans solidFor().
+function d16J17() {
+  const R = Math.SQRT1_2;                       // rayon des deux couronnes
+  const chord = 2 * R * Math.sin(Math.PI / 8);  // corde latérale dans le plan
+  const h = Math.sqrt(1 - chord * chord) / 2;   // demi-écart des couronnes
+  const apex = h + Math.sqrt(1 - R * R);        // z des deux pointes
+  const verts = [
+    [0, 0, apex],                                   // 0 pointe haute
+    [R, 0, h], [0, R, h], [-R, 0, h], [0, -R, h],  // 1-4 couronne haute
+    [0, 0, -apex],                                  // 5 pointe basse
+    [0.5, 0.5, -h], [-0.5, 0.5, -h], [-0.5, -0.5, -h], [0.5, -0.5, -h], // 6-9 couronne basse
+  ];
+  const faces = [
+    [0, 1, 2], [0, 2, 3], [0, 3, 4], [0, 4, 1],    // pyramide haute
+    [5, 7, 6], [5, 8, 7], [5, 9, 8], [5, 6, 9],    // pyramide basse
+    [6, 7, 2], [7, 8, 3], [8, 9, 4], [9, 6, 1],    // bande haute
+    [1, 2, 6], [2, 3, 7], [3, 4, 8], [4, 1, 9],    // bande basse
+  ];
+  return { verts, faces };
+}
+// Forme retenue pour le d16 : même topologie, proportions optimisées.
+// h = demi-écart des couronnes (rayon 1), apex = hauteur des pointes :
+//   - h = 0.455 et apex = 1.09834 → pôles = équateur (aspect bille) ;
+//   - contrainte d'aires égales exactes : (apex - h)² = (2h)² - 0.41421 ;
+//   - les 16 triangles sont congruents (côtés 1.414 / 1.189 / 1.189)
+//   - plans de faces tous à 0,812 du centre (silhouette quasi sphérique).
+function gyroelongatedSquareBipyramid() {
+  const h = 0.455;                  // demi-écart des couronnes (rayon 1)
+  const apex = 1.09834;             // hauteur des pointes : pôles ≈ équateur
+  const s = Math.SQRT1_2;
+  const verts = [
+    [0, 0, apex],                                   // 0 pointe haute
+    [1, 0, h], [0, 1, h], [-1, 0, h], [0, -1, h],  // 1-4 couronne haute
+    [0, 0, -apex],                                  // 5 pointe basse
+    [s, s, -h], [-s, s, -h], [-s, -s, -h], [s, -s, -h], // 6-9 couronne basse
+  ];
+  const faces = [
+    [0, 1, 2], [0, 2, 3], [0, 3, 4], [0, 4, 1],    // pyramide haute
+    [5, 7, 6], [5, 8, 7], [5, 9, 8], [5, 6, 9],    // pyramide basse
+    [6, 7, 2], [7, 8, 3], [8, 9, 4], [9, 6, 1],    // bande haute
+    [1, 2, 6], [2, 3, 7], [3, 4, 8], [4, 1, 9],    // bande basse
+  ];
+  return { verts, faces };
+}
+// --- Formes D14/D16 HISTORIQUES (conservées pour retour arrière) ---
+// Pour y revenir : dans solidFor(), brancher d14Legacy() / d16Legacy() et
+// remettre stretchUV: true sur ces deux dés dans config.js.
+function d14Legacy() {
+  const t = trapezohedron(7, 0.95);
+  return { ...t, landing: t.faces.map((_, i) => i) };
+}
+function d16Legacy() {
+  const b = bipyramid(8, 1.06);
+  return { ...b, landing: b.faces.map((_, i) => i) };
+}
 // --- D7 : sphère clipée par 7 plans (directions Tammes) ---
 function newellNormal(ring) {
   const n = [0, 0, 0];
@@ -358,11 +434,14 @@ export function solidFor(kind) {
     const d = dodeca();
     s = { ...d, landing: d.faces.map((_, i) => i) };
   } else if (kind === 'd14') {
-    const t = trapezohedron(7, 0.95);
-    s = { ...t, landing: t.faces.map((_, i) => i) };
+    // Forme historique trapézoèdre (type d10) : d14Legacy() ici pour y revenir.
+    const t14 = truncatedOctahedron();
+    s = { ...t14, landing: t14.faces.map((_, i) => i) };
   } else if (kind === 'd16') {
-    const b = bipyramid(8, 1.06);
-    s = { ...b, landing: b.faces.map((_, i) => i) };
+    // Forme historique bipyramide 8 : d16Legacy() ici pour y revenir.
+    // Forme intermédiaire J17 allongée : d16J17() ici pour y revenir.
+    const b16 = gyroelongatedSquareBipyramid();
+    s = { ...b16, landing: b16.faces.map((_, i) => i) };
   } else if (kind === 'd20') {
     const i = icosa();
     s = { ...i, landing: i.faces.map((_, i2) => i2) };

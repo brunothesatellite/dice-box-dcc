@@ -11,9 +11,10 @@ export const DICE = [
   { sides: 10, label: 'D10', color: '#c93b8f', kind: 'd10', fontScale: 0.74 },
   { sides: 10, label: 'D%',  color: '#f272a8', kind: 'd10', pct: true, fontScale: 0.6 },
   { sides: 12, label: 'D12', color: '#9a6a2f', kind: 'd12' },
-  // stretchUV : faces très allongées — rendu v0.2 assumé (chiffres étirés).
-  { sides: 14, label: 'D14', color: '#7ba428', kind: 'd14', fontScale: 0.8, size: 1.15, stretchUV: true },
-  { sides: 16, label: 'D16', color: '#64748b', kind: 'd16', fontScale: 0.7, size: 1.35, stretchUV: true },
+  // D14/D16 en forme "type d20". Pour reprendre l'ancienne forme + rendu étiré :
+  // stretchUV: true ici + d14Legacy()/d16Legacy()/d16J17() dans solids.js.
+  { sides: 14, label: 'D14', color: '#7ba428', kind: 'd14', fontScale: 0.8, size: 1.15 },
+  { sides: 16, label: 'D16', color: '#64748b', kind: 'd16', fontScale: 0.7, size: 1.15 },
   { sides: 20, label: 'D20', color: '#23262b', kind: 'd20', fontScale: 0.68, size: 1.2 },
   { sides: 24, label: 'D24', color: '#9aa7b5', kind: 'd24', fontScale: 0.72 },
   { sides: 30, label: 'D30', color: '#f2ead8', kind: 'd30', fontScale: 0.72, size: 1.15 },
@@ -26,7 +27,7 @@ export const OFFS_LIGHT = [0, -34, 17, -17, 34];
 export const LONGPRESS_MS = 500;
 export const TAP_SLOP = 10;
 export const FLING_PX = 260;
-export const TRAY_MAX = 10;
+export const TRAY_MAX = 14;
 export const TOTAL_MS = 8000;
 
 export function hx(h) {

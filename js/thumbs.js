@@ -2,6 +2,7 @@
 import * as THREE from '../vendor/three.module.min.js';
 import { buildDie, normalForValue } from './dice3d.js';
 import { valuesFor } from './config.js';
+import { solidFor } from './solids.js';
 
 // Présente la première face (1, ou 00) face caméra : un chiffre lisible.
 function presentFace(g, cam) {
@@ -10,7 +11,21 @@ function presentFace(g, cam) {
   const n = normalForValue(def, built, valuesFor(def)[0]);
   const target = camDir.clone();
   g.quaternion.setFromUnitVectors(n, target);
-  g.quaternion.premultiply(new THREE.Quaternion().setFromAxisAngle(target, 0.3));
+  if (def.kind === 'd16') {
+    // d16 : la pointe (pôle) fait saillir un coin dans la face présentée →
+    // on l'aligne à la verticale pour une silhouette droite (miroir haut/bas).
+    const solid = solidFor(def.kind);
+    const face = solid.faces[built.landing[0]];
+    const pole = face.reduce((a, b) => (Math.abs(solid.verts[b][2]) > Math.abs(solid.verts[a][2]) ? b : a));
+    const v = new THREE.Vector3(...solid.verts[pole]).applyQuaternion(g.quaternion);
+    const z = target;
+    const x = new THREE.Vector3().crossVectors(new THREE.Vector3(0, 1, 0), z).normalize();
+    const y = new THREE.Vector3().crossVectors(z, x);
+    const ang = Math.atan2(v.dot(x), v.dot(y));
+    g.quaternion.premultiply(new THREE.Quaternion().setFromAxisAngle(target, -ang));
+  } else {
+    g.quaternion.premultiply(new THREE.Quaternion().setFromAxisAngle(target, 0.3));
+  }
 }
 
 export function renderThumbs(defs, size = 112) {
