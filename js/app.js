@@ -92,4 +92,5 @@ tray.addDie(DICE[3]);
 tray.addDie(DICE[5]);
 
 window.__booted = true;
+document.getElementById('fileHint').hidden = true; // le module a chargé : plus de bandeau
 window.__tray = tray; // hook de test automatisé
